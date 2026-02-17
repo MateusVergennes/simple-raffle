@@ -262,6 +262,23 @@ function HomePage() {
     fireWinnerConfetti()
   }, [winnerNumber, winnerName])
 
+  useEffect(() => {
+    const open = modalOpen || imageOpen
+
+    const prevBodyOverflow = document.body.style.overflow
+    const prevHtmlOverflow = document.documentElement.style.overflow
+
+    if (open) {
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow
+      document.documentElement.style.overflow = prevHtmlOverflow
+    }
+  }, [modalOpen, imageOpen])
+
   const stats = useMemo(() => {
     const totalN = total
     let reserved = 0
@@ -608,6 +625,23 @@ function AdminPage() {
     )
     setTotalNumbers(String(clampTotal(cfg.totalNumbers ?? 200)))
   }, [cfg.raffleName, cfg.drawDate, cfg.resultNumber, cfg.totalNumbers])
+
+  useEffect(() => {
+    const open = multiOpen || !!confirmDelete
+
+    const prevBodyOverflow = document.body.style.overflow
+    const prevHtmlOverflow = document.documentElement.style.overflow
+
+    if (open) {
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow
+      document.documentElement.style.overflow = prevHtmlOverflow
+    }
+  }, [multiOpen, confirmDelete])
 
   const reservations = useMemo(() => {
     const list: Array<{ n: number; e: Entry }> = []
