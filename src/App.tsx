@@ -4,6 +4,7 @@ import { TbBrandCashapp } from 'react-icons/tb'
 import { AiOutlineDelete } from 'react-icons/ai'
 import { IoIosSettings } from 'react-icons/io'
 import { FaHome } from 'react-icons/fa'
+import { GrMultiple } from 'react-icons/gr'
 import {
   collection,
   deleteDoc,
@@ -12,9 +13,11 @@ import {
   runTransaction,
   serverTimestamp,
   updateDoc,
-  setDoc
+  setDoc,
+  writeBatch
 } from 'firebase/firestore'
 import { db } from './firebase'
+import { BiSolidSelectMultiple } from 'react-icons/bi'
 
 type Entry = {
   name: string
@@ -67,6 +70,7 @@ function pickRandom(list: number[]) {
 }
 
 type ModalStep = 'pick' | 'review'
+type MultiPayStep = 'names' | 'numbers' | 'review'
 
 function useConfig() {
   const [cfg, setCfg] = useState<AppConfig>({})
@@ -167,14 +171,6 @@ function SummaryCard(props: { cfg: AppConfig; stats: any; chart: any; onOpenImag
               <div>Pendentes</div>
               <div className="val">{stats.pending}</div>
             </div>
-            {/* <div className="dashRow">
-              <div>% reservado</div>
-              <div className="val">{(stats.pctReserved * 100).toFixed(1)}%</div>
-            </div>
-            <div className="dashRow">
-              <div>% pago (dos reservados)</div>
-              <div className="val">{(stats.pctPaidOfReserved * 100).toFixed(1)}%</div>
-            </div> */}
           </div>
 
           <div className="chartTitle">Gráfico</div>
@@ -202,7 +198,6 @@ function SummaryCard(props: { cfg: AppConfig; stats: any; chart: any; onOpenImag
             <img className="photoImg" src="/image_rifa.jpeg" alt="Foto da rifa" />
             <div className="photoHint">Toque para ampliar</div>
           </button>
-
         </div>
       </div>
     </div>
@@ -550,6 +545,14 @@ function AdminPage() {
   const [resultNumber, setResultNumber] = useState<string>('')
   const [totalNumbers, setTotalNumbers] = useState<string>('')
 
+  const [multiOpen, setMultiOpen] = useState(false)
+  const [multiStep, setMultiStep] = useState<MultiPayStep>('names')
+  const [multiSearch, setMultiSearch] = useState('')
+  const [multiName, setMultiName] = useState('')
+  const [multiSet, setMultiSet] = useState<Record<string, true>>({})
+  const [multiPaid, setMultiPaid] = useState<boolean | null>(null)
+  const [multiBusy, setMultiBusy] = useState(false)
+
   useEffect(() => {
     if (cfgError) setError(cfgError)
   }, [cfgError, setError])
@@ -584,6 +587,40 @@ function AdminPage() {
     }
     return max
   }, [entries, totalCfg])
+
+  const reservedNames = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const r of reservations) {
+      const nm = String(r.e.name || '').trim()
+      if (!nm) continue
+      map.set(nm, (map.get(nm) || 0) + 1)
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
+      .map(([name, count]) => ({ name, count }))
+  }, [reservations])
+
+  const filteredReservedNames = useMemo(() => {
+    const q = multiSearch.trim().toLowerCase()
+    if (!q) return reservedNames
+    return reservedNames.filter((x) => x.name.toLowerCase().includes(q))
+  }, [reservedNames, multiSearch])
+
+  const numbersForSelectedName = useMemo(() => {
+    if (!multiName) return []
+    const list: number[] = []
+    for (const r of reservations) {
+      if (String(r.e.name || '').trim() === multiName) list.push(r.n)
+    }
+    return list.sort((a, b) => a - b)
+  }, [reservations, multiName])
+
+  const selectedMultiNumbers = useMemo(() => {
+    return Object.keys(multiSet)
+      .map((k) => Number(k))
+      .filter((n) => Number.isInteger(n) && n >= 1 && n <= totalCfg)
+      .sort((a, b) => a - b)
+  }, [multiSet, totalCfg])
 
   function setLineBusy(n: number, v: boolean) {
     const k = String(n)
@@ -715,6 +752,89 @@ function AdminPage() {
     }
   }
 
+  function openMultiPay() {
+    setError('')
+    setMultiOpen(true)
+    setMultiStep('names')
+    setMultiSearch('')
+    setMultiName('')
+    setMultiSet({})
+    setMultiPaid(null)
+    setMultiBusy(false)
+  }
+
+  function closeMultiPay() {
+    if (multiBusy) return
+    setMultiOpen(false)
+    setMultiStep('names')
+    setMultiSearch('')
+    setMultiName('')
+    setMultiSet({})
+    setMultiPaid(null)
+    setMultiBusy(false)
+  }
+
+  function pickMultiName(name: string) {
+    setMultiName(name)
+    setMultiSet({})
+    setMultiPaid(null)
+    setMultiStep('numbers')
+  }
+
+  function toggleMultiNumber(n: number) {
+    const k = String(n)
+    setMultiSet((prev) => {
+      const next = { ...prev }
+      if (next[k]) delete next[k]
+      else next[k] = true
+      return next
+    })
+  }
+
+  function toggleSelectAllMulti() {
+    const all = numbersForSelectedName
+    if (!all.length) return
+    const allSelected = all.every((n) => !!multiSet[String(n)])
+    if (allSelected) {
+      setMultiSet({})
+      return
+    }
+    const next: Record<string, true> = {}
+    for (const n of all) next[String(n)] = true
+    setMultiSet(next)
+  }
+
+  function goReviewMulti(paidValue: boolean) {
+    if (!multiName) return
+    if (!selectedMultiNumbers.length) return
+    setMultiPaid(paidValue)
+    setMultiStep('review')
+  }
+
+  async function confirmMultiPay() {
+    if (!multiName) return
+    if (multiPaid === null) return
+    const nums = selectedMultiNumbers.slice()
+    if (!nums.length) return
+
+    setMultiBusy(true)
+    setError('')
+
+    try {
+      const batch = writeBatch(db)
+      for (const n of nums) {
+        batch.update(doc(db, 'entries', String(n)), { paid: multiPaid })
+      }
+      await batch.commit()
+
+      setMultiBusy(false)
+      closeMultiPay()
+    } catch (e: any) {
+      setError(String(e?.message || e))
+      setMultiBusy(false)
+    }
+  }
+
   if (!authed) {
     return (
       <div className="page">
@@ -800,11 +920,7 @@ function AdminPage() {
 
             <div className="adminField">
               <div className="adminLabel">Resultado</div>
-              <div className="adminInput">
-                {resultNumber.trim()
-                  ? resultNumber
-                  : '-'}
-              </div>
+              <div className="adminInput">{resultNumber.trim() ? resultNumber : '-'}</div>
             </div>
           </div>
 
@@ -823,7 +939,14 @@ function AdminPage() {
       </div>
 
       <div className="listCard">
-        <div className="listTitle">Reservas realizadas</div>
+        <div className="listTitle">
+          <span>Reservas realizadas</span>
+
+          <button className="multiPayBtn" onClick={openMultiPay} title="Pagar múltiplos" aria-label="Pagar múltiplos">
+            <span> Múltiplos Pagamentos</span>
+            <BiSolidSelectMultiple color='green'/>
+          </button>
+        </div>
 
         <div className="listHead admin">
           <div className="lh center">Número</div>
@@ -908,6 +1031,157 @@ function AdminPage() {
                 disabled={!!rowBusy[String(confirmDelete.n)]}
               >
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {multiOpen ? (
+        <div className="modalOverlay" onMouseDown={closeMultiPay}>
+          <div className="modalCard" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="modalHead">
+              <div className="modalTitle">Pagar múltiplos</div>
+              <button className="modalClose" onClick={closeMultiPay} aria-label="Fechar" disabled={multiBusy}>
+                ×
+              </button>
+            </div>
+
+            {multiStep === 'names' ? (
+              <div className="modalBody">
+                <div className="nameRow">
+                  <div className="modalLabel">Buscar nome</div>
+                  <input
+                    className="modalInput"
+                    value={multiSearch}
+                    onChange={(e) => setMultiSearch(e.target.value)}
+                    placeholder="Digite para filtrar"
+                    disabled={multiBusy}
+                  />
+                </div>
+
+                <div className="modalLabel">Selecione um nome</div>
+
+                <div className="mpNames">
+                  {filteredReservedNames.length ? (
+                    filteredReservedNames.map((x) => (
+                      <button
+                        key={x.name}
+                        className="mpNameBtn"
+                        onClick={() => pickMultiName(x.name)}
+                        disabled={multiBusy}
+                        title={x.name}
+                      >
+                        <span className="mpNameText">{x.name}</span>
+                        <span className="mpNameCount">{x.count}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="empty">Nenhuma reserva encontrada</div>
+                  )}
+                </div>
+              </div>
+            ) : multiStep === 'numbers' ? (
+              <div className="modalBody">
+                <div className="reviewBlock">
+                  <div className="reviewLine">
+                    <span className="reviewLabel">Nome</span>
+                    <span className="reviewValue">{multiName}</span>
+                  </div>
+                  <div className="hint">Selecione as rifas que deseja marcar.</div>
+                </div>
+
+                <div className="mpTopActions">
+                  <button className="btn" onClick={toggleSelectAllMulti} disabled={multiBusy || !numbersForSelectedName.length}>
+                    Selecionar todas
+                  </button>
+                  <div className="smallHint">
+                    Total: {numbersForSelectedName.length} | Selecionadas: {selectedMultiNumbers.length}
+                  </div>
+                </div>
+
+                <div className="badges">
+                  {numbersForSelectedName.map((n) => {
+                    const isSel = !!multiSet[String(n)]
+                    return (
+                      <button
+                        key={n}
+                        className={'badge ' + (isSel ? 'badgeSel' : 'badgeFree')}
+                        onClick={() => toggleMultiNumber(n)}
+                        disabled={multiBusy}
+                        title={isSel ? 'Remover' : 'Selecionar'}
+                      >
+                        {n}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="modalBody">
+                <div className="reviewBlock">
+                  <div className="reviewLine">
+                    <span className="reviewLabel">Nome</span>
+                    <span className="reviewValue">{multiName}</span>
+                  </div>
+
+                  <div className="reviewLine">
+                    <span className="reviewLabel">Rifas</span>
+                    <span className="reviewValue">{selectedMultiNumbers.join(', ')}</span>
+                  </div>
+
+                  <div className="reviewLine">
+                    <span className="reviewLabel">Ação</span>
+                    <span className={'reviewValue ' + (multiPaid ? 'mpTextPaid' : 'mpTextPending')}>
+                      {multiPaid ? 'Declarar pago' : 'Declarar não pago'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="hint">Confirme para aplicar o status em lote.</div>
+              </div>
+            )}
+
+            <div className="modalActions">
+              {multiStep === 'names' ? null : multiStep === 'numbers' ? (
+                <>
+                  <button
+                    className="btnGood"
+                    onClick={() => goReviewMulti(true)}
+                    disabled={multiBusy || !selectedMultiNumbers.length}
+                    title="Marcar como pago"
+                  >
+                    <TbBrandCashapp className="cashIcon cashPaid" />
+                    <span>Declarar pago</span>
+                  </button>
+                  <button
+                    className="btnBad"
+                    onClick={() => goReviewMulti(false)}
+                    disabled={multiBusy || !selectedMultiNumbers.length}
+                    title="Marcar como não pago"
+                  >
+                    <TbBrandCashapp className="cashIcon cashPending" />
+                    <span>Declarar não pago</span>
+                  </button>
+
+                  <button className="btn" onClick={() => setMultiStep('names')} disabled={multiBusy}>
+                    Voltar
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btnPrimary btnPrimaryWide" onClick={confirmMultiPay} disabled={multiBusy}>
+                    Confirmar
+                  </button>
+
+                  <button className="btn" onClick={() => setMultiStep('numbers')} disabled={multiBusy}>
+                    Voltar
+                  </button>
+                </>
+              )}
+
+              <button className="btn" onClick={closeMultiPay} disabled={multiBusy}>
+                Cancelar
               </button>
             </div>
           </div>

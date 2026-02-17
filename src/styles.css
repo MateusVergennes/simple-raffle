@@ -291,6 +291,32 @@ body {
     padding: 12px;
     background: #172236;
     border-bottom: 1px solid #25324a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.multiPayBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #25324a;
+    background: #0f1623;
+    color: #cfe0ff;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.multiPayBtn:hover {
+    background: #152033;
+}
+
+.multiPayBtn svg {
+    font-size: 18px;
+    color: #cfe0ff;
 }
 
 .listHead {
@@ -563,6 +589,14 @@ body {
     white-space: nowrap;
 }
 
+.mpTextPaid {
+    color: #22c55e;
+}
+
+.mpTextPending {
+    color: #ef4444;
+}
+
 .hint {
     margin-top: 12px;
     color: #a6b7db;
@@ -606,6 +640,38 @@ body {
 }
 
 .btnPrimary:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.btnPrimaryWide {
+    min-width: 180px;
+}
+
+.btnGood,
+.btnBad {
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #2b3a57;
+    background: #0f1623;
+    color: #e8eefc;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 180px;
+}
+
+.btnGood:hover,
+.btnBad:hover {
+    background: #152033;
+}
+
+.btnGood:disabled,
+.btnBad:disabled {
     opacity: 0.55;
     cursor: default;
 }
@@ -754,6 +820,57 @@ body {
 
 .imgClose:hover {
     background: rgba(21, 32, 51, 0.95);
+}
+
+.mpNames {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.mpNameBtn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid #2b3a57;
+    background: #0f1623;
+    color: #e8eefc;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.mpNameBtn:hover {
+    background: #152033;
+}
+
+.mpNameText {
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mpNameCount {
+    border: 1px solid #25324a;
+    background: #121a27;
+    color: #cfe0ff;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-weight: 900;
+    font-size: 12px;
+}
+
+.mpTopActions {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 @media (max-width: 980px) {
@@ -918,6 +1035,17 @@ body {
     .payPill {
         width: 100%;
         justify-content: center;
+    }
+
+    .btnGood,
+    .btnBad {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .btnPrimaryWide {
+        width: 100%;
+        min-width: 0;
     }
 }
 
