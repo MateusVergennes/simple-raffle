@@ -4,7 +4,6 @@ import { TbBrandCashapp } from 'react-icons/tb'
 import { AiOutlineDelete } from 'react-icons/ai'
 import { IoIosSettings } from 'react-icons/io'
 import { FaHome } from 'react-icons/fa'
-import { GrMultiple } from 'react-icons/gr'
 import confetti from 'canvas-confetti'
 import {
   collection,
