@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Routes, Route, useNavigate } from 'react-router-dom'
 import { TbBrandCashapp } from 'react-icons/tb'
 import { AiOutlineDelete } from 'react-icons/ai'
 import { IoIosSettings } from 'react-icons/io'
 import { FaHome } from 'react-icons/fa'
 import { GrMultiple } from 'react-icons/gr'
+import confetti from 'canvas-confetti'
 import {
   collection,
   deleteDoc,
@@ -67,6 +68,25 @@ function clampTotal(n: any) {
 function pickRandom(list: number[]) {
   const idx = Math.floor(Math.random() * list.length)
   return list[idx]
+}
+
+function normalizeWinnerNumber(v: any) {
+  if (v === undefined || v === null) return null
+  const n = Number(v)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return Math.floor(n)
+}
+
+function fireWinnerConfetti() {
+  confetti({
+    particleCount: 160,
+    angle: 90,
+    spread: 65,
+    startVelocity: 55,
+    gravity: 1.1,
+    ticks: 220,
+    origin: { x: 0.5, y: 0.95 }
+  })
 }
 
 type ModalStep = 'pick' | 'review'
@@ -219,9 +239,29 @@ function HomePage() {
   const [imageOpen, setImageOpen] = useState(false)
   const nav = useNavigate()
 
+  const lastWinnerKeyRef = useRef('')
+
   useEffect(() => {
     if (cfgError) setError(cfgError)
   }, [cfgError, setError])
+
+  const winnerNumber = useMemo(() => {
+    return normalizeWinnerNumber(cfg.resultNumber)
+  }, [cfg.resultNumber])
+
+  const winnerName = useMemo(() => {
+    if (!winnerNumber) return ''
+    const e = entries[String(winnerNumber)]
+    return String(e?.name || '').trim()
+  }, [entries, winnerNumber])
+
+  useEffect(() => {
+    if (!winnerNumber) return
+    const key = `${winnerNumber}|${winnerName}`
+    if (key === lastWinnerKeyRef.current) return
+    lastWinnerKeyRef.current = key
+    fireWinnerConfetti()
+  }, [winnerNumber, winnerName])
 
   const stats = useMemo(() => {
     const totalN = total
@@ -378,13 +418,12 @@ function HomePage() {
       </button>
 
       <div className="resultBox resultBoxTop">
-        <div className="resultBigLabel">Resultado</div>
+        <div className="resultBigLabel">{winnerNumber ? 'Vencedor' : 'Resultado'}</div>
         <div className="resultBigValue">
-          {cfg.resultNumber !== undefined &&
-            cfg.resultNumber !== null &&
-            String(cfg.resultNumber).trim() !== '' &&
-            Number(cfg.resultNumber) > 0
-            ? String(cfg.resultNumber)
+          {winnerNumber
+            ? winnerName
+              ? `${winnerNumber} (${winnerName})`
+              : String(winnerNumber)
             : cfg.drawDate
               ? formatDateBR(cfg.drawDate)
               : '-'}
@@ -622,6 +661,16 @@ function AdminPage() {
       .sort((a, b) => a - b)
   }, [multiSet, totalCfg])
 
+  const winnerNumberAdmin = useMemo(() => {
+    return normalizeWinnerNumber(cfg.resultNumber)
+  }, [cfg.resultNumber])
+
+  const winnerNameAdmin = useMemo(() => {
+    if (!winnerNumberAdmin) return ''
+    const e = entries[String(winnerNumberAdmin)]
+    return String(e?.name || '').trim()
+  }, [entries, winnerNumberAdmin])
+
   function setLineBusy(n: number, v: boolean) {
     const k = String(n)
     setRowBusy((prev) => {
@@ -719,13 +768,14 @@ function AdminPage() {
   }
 
   async function sortear() {
-    const reservedNums = reservations.map((r) => r.n)
-    if (!reservedNums.length) {
-      setError('Não tem números reservados para sortear')
+    const paidNums = reservations.filter((r) => !!r.e.paid).map((r) => r.n)
+
+    if (!paidNums.length) {
+      setError('Não tem números pagos para sortear')
       return
     }
 
-    const n = pickRandom(reservedNums)
+    const n = pickRandom(paidNums)
     setResultNumber(String(n))
 
     setBusy(true)
@@ -920,7 +970,15 @@ function AdminPage() {
 
             <div className="adminField">
               <div className="adminLabel">Resultado</div>
-              <div className="adminInput">{resultNumber.trim() ? resultNumber : '-'}</div>
+              <div className="adminInput">
+                {winnerNumberAdmin
+                  ? winnerNameAdmin
+                    ? `${winnerNumberAdmin} (${winnerNameAdmin})`
+                    : String(winnerNumberAdmin)
+                  : resultNumber.trim()
+                    ? resultNumber.trim()
+                    : '-'}
+              </div>
             </div>
           </div>
 
@@ -944,7 +1002,7 @@ function AdminPage() {
 
           <button className="multiPayBtn" onClick={openMultiPay} title="Pagar múltiplos" aria-label="Pagar múltiplos">
             <span> Múltiplos Pagamentos</span>
-            <BiSolidSelectMultiple color='green'/>
+            <BiSolidSelectMultiple color='green' />
           </button>
         </div>
 
