@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Routes, Route, useNavigate } from 'react-router-dom'
 import { TbBrandCashapp } from 'react-icons/tb'
-import { AiOutlineDelete } from 'react-icons/ai'
+import { AiOutlineDelete, AiOutlineCheckCircle } from 'react-icons/ai'
 import { IoIosSettings } from 'react-icons/io'
 import { FaHome } from 'react-icons/fa'
+import { FaPix } from 'react-icons/fa6'
 import confetti from 'canvas-confetti'
 import {
   collection,
@@ -34,6 +35,14 @@ type AppConfig = {
   drawDate?: string
   resultNumber?: number | null
 }
+
+const PRICE_PER_NUMBER = 2
+
+const PIX_KEY = String(import.meta.env.VITE_PIX_KEY || '').trim()
+const PIX_NAME = String(import.meta.env.VITE_PIX_NAME || '').trim()
+const PIX_BANK = String(import.meta.env.VITE_PIX_BANK || '').trim()
+
+const moneyBR = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 function formatWhen(v: any) {
   try {
@@ -227,6 +236,76 @@ function SummaryCard(props: { cfg: AppConfig; stats: any; chart: any; onOpenImag
   )
 }
 
+function PixPaymentCard(props: { title?: string }) {
+  const { title } = props
+
+  const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef<any>(null)
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current)
+    }
+  }, [])
+
+  if (!PIX_KEY) return null
+
+  async function copyPix() {
+    try {
+      await navigator.clipboard.writeText(PIX_KEY)
+      setCopied(true)
+      if (copiedTimer.current) clearTimeout(copiedTimer.current)
+      copiedTimer.current = setTimeout(() => setCopied(false), 1600)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div className="pixCard">
+      <div className="pixTop">
+        <div className="pixTopLeft">
+          <FaPix className="pixIcon" />
+          <div className="pixTitle">{title || 'Pagamento via Pix'}</div>
+        </div>
+
+        {copied ? (
+          <div className="pixCopied">
+            <AiOutlineCheckCircle />
+            <span>Chave copiada</span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="pixRows">
+        <div className="pixRow">
+          <div className="pixLabel">Chave Pix</div>
+          <div className="pixValue pixKeyLine">
+            <span className="pixMono">{PIX_KEY}</span>
+            <button className="pixCopyBtn" onClick={copyPix} title="Copiar chave Pix">
+              Copiar
+            </button>
+          </div>
+        </div>
+
+        {PIX_NAME ? (
+          <div className="pixRow">
+            <div className="pixLabel">Nome</div>
+            <div className="pixValue">{PIX_NAME}</div>
+          </div>
+        ) : null}
+
+        {PIX_BANK ? (
+          <div className="pixRow">
+            <div className="pixLabel">Banco</div>
+            <div className="pixValue">{PIX_BANK}</div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function HomePage() {
   const { cfg, cfgError } = useConfig()
   const total = clampTotal(cfg.totalNumbers ?? 200)
@@ -243,6 +322,10 @@ function HomePage() {
   const nav = useNavigate()
 
   const [homeSearch, setHomeSearch] = useState('')
+
+  const [payOpen, setPayOpen] = useState(false)
+  const [payAmount, setPayAmount] = useState<number>(0)
+  const [payCount, setPayCount] = useState<number>(0)
 
   const lastWinnerKeyRef = useRef('')
 
@@ -269,7 +352,7 @@ function HomePage() {
   }, [winnerNumber, winnerName])
 
   useEffect(() => {
-    const open = modalOpen || imageOpen
+    const open = modalOpen || imageOpen || payOpen
 
     const prevBodyOverflow = document.body.style.overflow
     const prevHtmlOverflow = document.documentElement.style.overflow
@@ -283,7 +366,7 @@ function HomePage() {
       document.body.style.overflow = prevBodyOverflow
       document.documentElement.style.overflow = prevHtmlOverflow
     }
-  }, [modalOpen, imageOpen])
+  }, [modalOpen, imageOpen, payOpen])
 
   const stats = useMemo(() => {
     const totalN = total
@@ -388,6 +471,12 @@ function HomePage() {
     return true
   }
 
+  function closePayModal() {
+    setPayOpen(false)
+    setPayAmount(0)
+    setPayCount(0)
+  }
+
   async function confirmReserve() {
     const name = modalName.trim()
     const nums = selectedNumbers.slice()
@@ -410,8 +499,15 @@ function HomePage() {
         }
       })
 
+      const count = nums.length
+      const amount = count * PRICE_PER_NUMBER
+
       setBusy(false)
       closeModal()
+
+      setPayCount(count)
+      setPayAmount(amount)
+      setPayOpen(true)
     } catch (e: any) {
       const msg = String(e?.message || e)
       if (msg.startsWith('RESERVED:')) {
@@ -461,6 +557,8 @@ function HomePage() {
               : '-'}
         </div>
       </div>
+
+      <PixPaymentCard title="Pagamento" />
 
       <SummaryCard cfg={cfg} stats={stats} chart={chart} onOpenImage={() => setImageOpen(true)} />
 
@@ -519,6 +617,42 @@ function HomePage() {
               ×
             </button>
             <img className="imgFull" src="/image_rifa.jpeg" alt="Foto da rifa ampliada" />
+          </div>
+        </div>
+      ) : null}
+
+      {payOpen ? (
+        <div className="modalOverlay" onMouseDown={closePayModal}>
+          <div className="modalCard payModal" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="modalHead">
+              <div className="modalTitle">Reserva confirmada</div>
+              <button className="modalClose" onClick={closePayModal} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+
+            <div className="modalBody">
+              <div className="payAmountBox">
+                <div className="payAmountLabel">Valor a pagar</div>
+                <div className="payAmountValue">{moneyBR.format(payAmount)}</div>
+                <div className="payAmountHint">
+                  {payCount} {payCount === 1 ? 'número' : 'números'} x {moneyBR.format(PRICE_PER_NUMBER)}
+                </div>
+              </div>
+
+              <PixPaymentCard title="Dados do Pix" />
+              {!PIX_KEY ? (
+                <div className="hint" style={{ marginTop: 10 }}>
+                  Faltou configurar VITE_PIX_KEY no .env, então não dá para mostrar a chave aqui.
+                </div>
+              ) : null}
+            </div>
+
+            <div className="modalActions">
+              <button className="btnPrimary btnPrimaryWide" onClick={closePayModal}>
+                Ok
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

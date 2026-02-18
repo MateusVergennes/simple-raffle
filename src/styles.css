@@ -1023,13 +1023,6 @@ body {
         min-width: 92px;
     }
 
-    .payCell::before {
-        content: "Pagamento";
-        color: #9fb3d9;
-        font-weight: 900;
-        min-width: 92px;
-    }
-
     .delCell::before {
         content: "";
     }
@@ -1256,4 +1249,137 @@ body {
         justify-content: flex-start;
         flex: unset;
     }
+}
+
+/* Pagamento Pix */
+.pixCard {
+    border: 1px solid #1f3e2a;
+    background: #0f1f16;
+    border-radius: 14px;
+    padding: 12px;
+    margin: 0 0 14px 0;
+}
+
+.pixTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.pixTopLeft {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.pixIcon {
+    font-size: 18px;
+    color: #22c55e;
+}
+
+.pixTitle {
+    font-weight: 900;
+    color: #d6ffe8;
+}
+
+.pixCopied {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #7cf0b1;
+    font-weight: 900;
+    font-size: 13px;
+}
+
+.pixRows {
+    display: grid;
+    gap: 10px;
+}
+
+.pixRow {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 10px;
+    align-items: center;
+    border: 1px solid #1f3e2a;
+    background: #0b1510;
+    border-radius: 12px;
+    padding: 10px 12px;
+    min-width: 0;
+}
+
+.pixLabel {
+    color: #9bd6b7;
+    font-weight: 900;
+}
+
+.pixValue {
+    font-weight: 900;
+    color: #e8fff5;
+    min-width: 0;
+}
+
+.pixKeyLine {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.pixMono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    word-break: break-word;
+}
+
+.pixCopyBtn {
+    flex: 0 0 auto;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #1f3e2a;
+    background: #0f2218;
+    color: #d6ffe8;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.pixCopyBtn:hover {
+    background: #153224;
+}
+
+.payModal {
+    width: min(720px, 96vw);
+}
+
+.payAmountBox {
+    border: 1px solid #1f3e2a;
+    background: #0b1510;
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.payAmountLabel {
+    font-weight: 900;
+    color: #9bd6b7;
+    font-size: 13px;
+}
+
+.payAmountValue {
+    font-weight: 900;
+    font-size: 28px;
+    margin-top: 6px;
+    color: #7cf0b1;
+}
+
+.payAmountHint {
+    margin-top: 6px;
+    color: #a6b7db;
+    font-size: 12px;
 }
