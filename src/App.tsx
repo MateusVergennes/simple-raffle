@@ -684,12 +684,24 @@ function AdminPage() {
 
   const filteredReservations = useMemo(() => {
     const q = adminListSearch.trim().toLowerCase()
-    if (!q) return reservations
-    return reservations.filter((x) => {
-      const nm = String(x.e?.name || '').toLowerCase()
-      const num = String(x.n)
-      return nm.includes(q) || num.includes(q)
-    })
+
+    const base = !q
+      ? reservations
+      : reservations.filter((x) => {
+        const nm = String(x.e?.name || '').toLowerCase()
+        const num = String(x.n)
+        return nm.includes(q) || num.includes(q)
+      })
+
+    const pending: Array<{ n: number; e: Entry }> = []
+    const paid: Array<{ n: number; e: Entry }> = []
+
+    for (const r of base) {
+      if (r.e?.paid) paid.push(r)
+      else pending.push(r)
+    }
+
+    return pending.concat(paid)
   }, [reservations, adminListSearch])
 
   const maxReservedNumber = useMemo(() => {
