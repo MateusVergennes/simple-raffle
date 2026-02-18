@@ -90,6 +90,7 @@ function fireWinnerConfetti() {
 
 type ModalStep = 'pick' | 'review'
 type MultiPayStep = 'names' | 'numbers' | 'review'
+type MultiAction = 'paid' | 'pending' | 'delete'
 
 function useConfig() {
   const [cfg, setCfg] = useState<AppConfig>({})
@@ -605,7 +606,7 @@ function AdminPage() {
   const [multiSearch, setMultiSearch] = useState('')
   const [multiName, setMultiName] = useState('')
   const [multiSet, setMultiSet] = useState<Record<string, true>>({})
-  const [multiPaid, setMultiPaid] = useState<boolean | null>(null)
+  const [multiAction, setMultiAction] = useState<MultiAction | null>(null)
   const [multiBusy, setMultiBusy] = useState(false)
 
   useEffect(() => {
@@ -842,7 +843,7 @@ function AdminPage() {
     setMultiSearch('')
     setMultiName('')
     setMultiSet({})
-    setMultiPaid(null)
+    setMultiAction(null)
     setMultiBusy(false)
   }
 
@@ -853,14 +854,14 @@ function AdminPage() {
     setMultiSearch('')
     setMultiName('')
     setMultiSet({})
-    setMultiPaid(null)
+    setMultiAction(null)
     setMultiBusy(false)
   }
 
   function pickMultiName(name: string) {
     setMultiName(name)
     setMultiSet({})
-    setMultiPaid(null)
+    setMultiAction(null)
     setMultiStep('numbers')
   }
 
@@ -887,16 +888,16 @@ function AdminPage() {
     setMultiSet(next)
   }
 
-  function goReviewMulti(paidValue: boolean) {
+  function goReviewMulti(action: MultiAction) {
     if (!multiName) return
     if (!selectedMultiNumbers.length) return
-    setMultiPaid(paidValue)
+    setMultiAction(action)
     setMultiStep('review')
   }
 
   async function confirmMultiPay() {
     if (!multiName) return
-    if (multiPaid === null) return
+    if (!multiAction) return
     const nums = selectedMultiNumbers.slice()
     if (!nums.length) return
 
@@ -905,9 +906,18 @@ function AdminPage() {
 
     try {
       const batch = writeBatch(db)
-      for (const n of nums) {
-        batch.update(doc(db, 'entries', String(n)), { paid: multiPaid })
+
+      if (multiAction === 'delete') {
+        for (const n of nums) {
+          batch.delete(doc(db, 'entries', String(n)))
+        }
+      } else {
+        const paidValue = multiAction === 'paid'
+        for (const n of nums) {
+          batch.update(doc(db, 'entries', String(n)), { paid: paidValue })
+        }
       }
+
       await batch.commit()
 
       setMultiBusy(false)
@@ -1034,7 +1044,7 @@ function AdminPage() {
           <span>Reservas realizadas</span>
 
           <button className="multiPayBtn" onClick={openMultiPay} title="Pagar múltiplos" aria-label="Pagar múltiplos">
-            <span> Múltiplos Pagamentos</span>
+            <span>Ação Sobre Vários</span>
             <BiSolidSelectMultiple color='green' />
           </button>
         </div>
@@ -1223,13 +1233,25 @@ function AdminPage() {
 
                   <div className="reviewLine">
                     <span className="reviewLabel">Ação</span>
-                    <span className={'reviewValue ' + (multiPaid ? 'mpTextPaid' : 'mpTextPending')}>
-                      {multiPaid ? 'Declarar pago' : 'Declarar não pago'}
+                    <span
+                      className={
+                        'reviewValue ' + (multiAction === 'paid' ? 'mpTextPaid' : 'mpTextPending')
+                      }
+                    >
+                      {multiAction === 'paid'
+                        ? 'Declarar pago'
+                        : multiAction === 'pending'
+                          ? 'Declarar não pago'
+                          : 'Excluir'}
                     </span>
                   </div>
                 </div>
 
-                <div className="hint">Confirme para aplicar o status em lote.</div>
+                <div className="hint">
+                  {multiAction === 'delete'
+                    ? 'Confirme para excluir as reservas selecionadas.'
+                    : 'Confirme para aplicar o status em lote.'}
+                </div>
               </div>
             )}
 
@@ -1238,7 +1260,7 @@ function AdminPage() {
                 <>
                   <button
                     className="btnGood"
-                    onClick={() => goReviewMulti(true)}
+                    onClick={() => goReviewMulti('paid')}
                     disabled={multiBusy || !selectedMultiNumbers.length}
                     title="Marcar como pago"
                   >
@@ -1247,12 +1269,21 @@ function AdminPage() {
                   </button>
                   <button
                     className="btnBad"
-                    onClick={() => goReviewMulti(false)}
+                    onClick={() => goReviewMulti('pending')}
                     disabled={multiBusy || !selectedMultiNumbers.length}
                     title="Marcar como não pago"
                   >
                     <TbBrandCashapp className="cashIcon cashPending" />
                     <span>Declarar não pago</span>
+                  </button>
+                  <button
+                    className="btnDanger"
+                    onClick={() => goReviewMulti('delete')}
+                    disabled={multiBusy || !selectedMultiNumbers.length}
+                    title="Excluir reservas"
+                  >
+                    <AiOutlineDelete className="delIcon" />
+                    <span>Excluir</span>
                   </button>
 
                   <button className="btn" onClick={() => setMultiStep('names')} disabled={multiBusy}>

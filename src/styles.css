@@ -649,7 +649,8 @@ body {
 }
 
 .btnGood,
-.btnBad {
+.btnBad,
+.btnDanger {
     font-size: 14px;
     padding: 10px 12px;
     border-radius: 10px;
@@ -666,12 +667,14 @@ body {
 }
 
 .btnGood:hover,
-.btnBad:hover {
+.btnBad:hover,
+.btnDanger:hover {
     background: #152033;
 }
 
 .btnGood:disabled,
-.btnBad:disabled {
+.btnBad:disabled,
+.btnDanger:disabled {
     opacity: 0.55;
     cursor: default;
 }
@@ -1038,7 +1041,8 @@ body {
     }
 
     .btnGood,
-    .btnBad {
+    .btnBad,
+    .btnDanger {
         width: 100%;
         min-width: 0;
     }
