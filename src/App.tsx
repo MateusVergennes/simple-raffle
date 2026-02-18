@@ -14,7 +14,10 @@ import {
   serverTimestamp,
   updateDoc,
   setDoc,
-  writeBatch
+  writeBatch,
+  getDocs,
+  query,
+  orderBy
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { BiSolidSelectMultiple } from 'react-icons/bi'
@@ -239,6 +242,8 @@ function HomePage() {
   const [imageOpen, setImageOpen] = useState(false)
   const nav = useNavigate()
 
+  const [homeSearch, setHomeSearch] = useState('')
+
   const lastWinnerKeyRef = useRef('')
 
   useEffect(() => {
@@ -324,6 +329,16 @@ function HomePage() {
     }
     return list
   }, [entries, total])
+
+  const filteredReservations = useMemo(() => {
+    const q = homeSearch.trim().toLowerCase()
+    if (!q) return reservations
+    return reservations.filter((x) => {
+      const nm = String(x.e?.name || '').toLowerCase()
+      const num = String(x.n)
+      return nm.includes(q) || num.includes(q)
+    })
+  }, [reservations, homeSearch])
 
   const availableNumbers = useMemo(() => {
     const list: number[] = []
@@ -450,7 +465,19 @@ function HomePage() {
       <SummaryCard cfg={cfg} stats={stats} chart={chart} onOpenImage={() => setImageOpen(true)} />
 
       <div className="listCard">
-        <div className="listTitle">Reservas realizadas</div>
+        <div className="listTitle">
+          <span>Reservas realizadas</span>
+        </div>
+
+        <div style={{ padding: 12 }}>
+          <div className="modalLabel" style={{ marginBottom: 5 }}>Buscar por número ou nome</div>
+          <input
+            className="modalInput"
+            value={homeSearch}
+            onChange={(e) => setHomeSearch(e.target.value)}
+            placeholder="Digite para filtrar"
+          />
+        </div>
 
         <div className="listHead home">
           <div className="lh center">Número</div>
@@ -460,8 +487,8 @@ function HomePage() {
         </div>
 
         <div className="listBody">
-          {reservations.length ? (
-            reservations.map(({ n, e }) => {
+          {filteredReservations.length ? (
+            filteredReservations.map(({ n, e }) => {
               const paid = !!e.paid
               return (
                 <div key={n} className="listRow home">
@@ -480,7 +507,7 @@ function HomePage() {
               )
             })
           ) : (
-            <div className="empty">Nenhuma reserva ainda</div>
+            <div className="empty">Nenhuma reserva encontrada</div>
           )}
         </div>
       </div>
@@ -609,6 +636,8 @@ function AdminPage() {
   const [multiAction, setMultiAction] = useState<MultiAction | null>(null)
   const [multiBusy, setMultiBusy] = useState(false)
 
+  const [adminListSearch, setAdminListSearch] = useState('')
+
   useEffect(() => {
     if (cfgError) setError(cfgError)
   }, [cfgError, setError])
@@ -652,6 +681,16 @@ function AdminPage() {
     }
     return list
   }, [entries, totalCfg])
+
+  const filteredReservations = useMemo(() => {
+    const q = adminListSearch.trim().toLowerCase()
+    if (!q) return reservations
+    return reservations.filter((x) => {
+      const nm = String(x.e?.name || '').toLowerCase()
+      const num = String(x.n)
+      return nm.includes(q) || num.includes(q)
+    })
+  }, [reservations, adminListSearch])
 
   const maxReservedNumber = useMemo(() => {
     let max = 0
@@ -1049,6 +1088,16 @@ function AdminPage() {
           </button>
         </div>
 
+        <div style={{ padding: 12 }}>
+          <div className="modalLabel" style={{ marginBottom: 5 }}>Buscar por número ou nome</div>
+          <input
+            className="modalInput"
+            value={adminListSearch}
+            onChange={(e) => setAdminListSearch(e.target.value)}
+            placeholder="Digite para filtrar"
+          />
+        </div>
+
         <div className="listHead admin">
           <div className="lh center">Número</div>
           <div className="lh">Nome</div>
@@ -1058,8 +1107,8 @@ function AdminPage() {
         </div>
 
         <div className="listBody">
-          {reservations.length ? (
-            reservations.map(({ n, e }) => {
+          {filteredReservations.length ? (
+            filteredReservations.map(({ n, e }) => {
               const paid = !!e.paid
               const isRowBusy = !!rowBusy[String(n)]
 
@@ -1097,7 +1146,7 @@ function AdminPage() {
               )
             })
           ) : (
-            <div className="empty">Nenhuma reserva ainda</div>
+            <div className="empty">Nenhuma reserva encontrada</div>
           )}
         </div>
       </div>
@@ -1235,7 +1284,8 @@ function AdminPage() {
                     <span className="reviewLabel">Ação</span>
                     <span
                       className={
-                        'reviewValue ' + (multiAction === 'paid' ? 'mpTextPaid' : 'mpTextPending')
+                        'reviewValue ' +
+                        (multiAction === 'paid' ? 'mpTextPaid' : multiAction === 'pending' ? 'mpTextPending' : 'mpTextPending')
                       }
                     >
                       {multiAction === 'paid'
@@ -1313,11 +1363,385 @@ function AdminPage() {
   )
 }
 
+type BackupMeta = {
+  name: string
+  createdAt?: any
+  docCount?: number
+}
+
+function DataAdminPage() {
+  const nav = useNavigate()
+  const { cfg } = useConfig()
+
+  const [pw, setPw] = useState('')
+  const [authed, setAuthed] = useState(false)
+
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState('')
+
+  const [backups, setBackups] = useState<BackupMeta[]>([])
+  const [selectedBackup, setSelectedBackup] = useState<string>('')
+  const [backupSearch, setBackupSearch] = useState('')
+
+  const [backupEntries, setBackupEntries] = useState<Array<{ n: number; e: Entry }>>([])
+  const [backupEntrySearch, setBackupEntrySearch] = useState('')
+
+  useEffect(() => {
+    const ok = localStorage.getItem('rifa_admin_manage_ok') === '1'
+    setAuthed(ok)
+  }, [])
+
+  useEffect(() => {
+    const qy = query(collection(db, 'backups'), orderBy('createdAt', 'desc'))
+    return onSnapshot(
+      qy,
+      (snap) => {
+        const list: BackupMeta[] = []
+        snap.forEach((d) => {
+          const data = d.data() as any
+          const name = String(data?.name || d.id)
+          list.push({
+            name,
+            createdAt: data?.createdAt,
+            docCount: Number(data?.docCount || 0)
+          })
+        })
+        setBackups(list)
+      },
+      (err) => setError(String(err?.message || err))
+    )
+  }, [])
+
+  function login() {
+    const expected = String(import.meta.env.VITE_ADMIN_PASSWORD_MANAGE || '')
+    if (!expected) {
+      setError('Faltou VITE_ADMIN_PASSWORD_MANAGE no .env')
+      return
+    }
+    if (pw.trim() !== expected) {
+      setError('Senha incorreta')
+      return
+    }
+    localStorage.setItem('rifa_admin_manage_ok', '1')
+    setAuthed(true)
+    setError('')
+  }
+
+  function logout() {
+    localStorage.removeItem('rifa_admin_manage_ok')
+    setAuthed(false)
+    setPw('')
+    setError('')
+  }
+
+  function stamp() {
+    const d = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
+  }
+
+  async function generateBackup() {
+    if (busy) return
+
+    setBusy(true)
+    setError('')
+    setProgress('Lendo entries...')
+
+    try {
+      const backupName = `entries-${stamp()}`
+
+      const snap = await getDocs(collection(db, 'entries'))
+      const docs = snap.docs.map((d) => ({ id: d.id, data: d.data() }))
+
+      if (!docs.length) {
+        setProgress('')
+        setBusy(false)
+        setError('Não tem nada em entries para fazer backup')
+        return
+      }
+
+      const CHUNK = 450
+      const totalChunks = Math.ceil(docs.length / CHUNK)
+
+      for (let i = 0; i < docs.length; i += CHUNK) {
+        const chunkIndex = Math.floor(i / CHUNK) + 1
+        setProgress(`Gravando ${chunkIndex}/${totalChunks}...`)
+
+        const batch = writeBatch(db)
+        const part = docs.slice(i, i + CHUNK)
+
+        for (const x of part) {
+          batch.set(doc(db, backupName, String(x.id)), x.data as any)
+        }
+
+        await batch.commit()
+      }
+
+      setProgress('Registrando backup...')
+      await setDoc(
+        doc(db, 'backups', backupName),
+        {
+          name: backupName,
+          createdAt: serverTimestamp(),
+          docCount: docs.length
+        },
+        { merge: true }
+      )
+
+      setSelectedBackup(backupName)
+      setProgress('')
+      setBusy(false)
+    } catch (e: any) {
+      setProgress('')
+      setBusy(false)
+      setError(String(e?.message || e))
+    }
+  }
+
+  async function openBackup(name: string) {
+    if (busy) return
+
+    setSelectedBackup(name)
+    setBackupEntries([])
+    setBackupEntrySearch('')
+    setError('')
+    setProgress('Carregando backup...')
+
+    try {
+      const snap = await getDocs(collection(db, name))
+      const list: Array<{ n: number; e: Entry }> = []
+
+      snap.forEach((d) => {
+        const id = d.id
+        if (!/^\d+$/.test(id)) return
+        const n = Number(id)
+        if (n < 1) return
+        list.push({ n, e: d.data() as Entry })
+      })
+
+      list.sort((a, b) => a.n - b.n)
+      setBackupEntries(list)
+      setProgress('')
+    } catch (e: any) {
+      setProgress('')
+      setError(String(e?.message || e))
+    }
+  }
+
+  const filteredBackups = useMemo(() => {
+    const q = backupSearch.trim().toLowerCase()
+    if (!q) return backups
+    return backups.filter((b) => b.name.toLowerCase().includes(q))
+  }, [backups, backupSearch])
+
+  const filteredBackupEntries = useMemo(() => {
+    const q = backupEntrySearch.trim().toLowerCase()
+    if (!q) return backupEntries
+    return backupEntries.filter((x) => {
+      const nm = String(x.e?.name || '').toLowerCase()
+      const num = String(x.n)
+      return nm.includes(q) || num.includes(q)
+    })
+  }, [backupEntries, backupEntrySearch])
+
+  if (!authed) {
+    return (
+      <div className="page dataPage">
+        <div className="topCard">
+          <div className="brandOnly">{cfg.raffleName || 'Rifa'}</div>
+          <div className="adminLoginCard">
+            <div className="adminLoginTitle">Admin Data</div>
+
+            {error ? <div className="error">{error}</div> : null}
+
+            <div className="adminLoginRow">
+              <input
+                className="adminPw"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="Senha"
+                type="password"
+              />
+              <button className="btnPrimary" onClick={login}>
+                Entrar
+              </button>
+            </div>
+
+            <div className="hint">Acesse direto por /admin/data</div>
+          </div>
+        </div>
+
+        <div className="backRow">
+          <button className="btn" onClick={() => nav('/')}>
+            Voltar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="page dataPage">
+      <div className="topCard">
+        <div className="brandRow">
+          <div className="brandOnly">{cfg.raffleName || 'Rifa'}</div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button className="adminIconBtn" onClick={() => nav('/admin')} title="Admin" aria-label="Admin">
+              <IoIosSettings />
+            </button>
+            <button className="adminIconBtn" onClick={() => nav('/')} title="Página inicial" aria-label="Página inicial">
+              <FaHome />
+            </button>
+            <button className="adminLinkBtn" onClick={logout}>
+              Sair
+            </button>
+          </div>
+        </div>
+
+        {error ? <div className="error">{error}</div> : null}
+
+        <div className="adminPanel dataPanel">
+          <div className="adminPanelTitle">Backups de entries</div>
+
+          <div className="dataTopRow">
+            <button className="btnPrimary" onClick={generateBackup} disabled={busy}>
+              Gerar backup agora
+            </button>
+
+            <div className="dataProgress">
+              {progress ? <span className="smallHint">{progress}</span> : null}
+            </div>
+          </div>
+
+          <div className="dataSplit">
+            <div className="dataCol">
+              <div className="dataColTitle">Backups</div>
+
+              <div className="nameRow">
+                <div className="modalLabel">Buscar backup</div>
+                <input
+                  className="modalInput"
+                  value={backupSearch}
+                  onChange={(e) => setBackupSearch(e.target.value)}
+                  placeholder="Digite para filtrar"
+                  disabled={busy}
+                />
+              </div>
+
+              <div className="dataBackups">
+                {filteredBackups.length ? (
+                  filteredBackups.map((b) => {
+                    const isSel = b.name === selectedBackup
+                    return (
+                      <button
+                        key={b.name}
+                        className={'dataBackupBtn' + (isSel ? ' isSel' : '')}
+                        onClick={() => openBackup(b.name)}
+                        disabled={busy}
+                        title={b.name}
+                      >
+                        <div className="dataBackupMain">
+                          <div className="dataBackupName">{b.name}</div>
+                          <div className="smallHint">
+                            {b.createdAt ? formatWhen(b.createdAt) : ''}{b.docCount ? ` | docs: ${b.docCount}` : ''}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })
+                ) : (
+                  <div className="empty">Nenhum backup ainda</div>
+                )}
+              </div>
+            </div>
+
+            <div className="dataCol">
+              <div className="dataColTitle">Conteúdo do backup</div>
+
+              {selectedBackup ? (
+                <>
+                  <div className="reviewBlock">
+                    <div className="reviewLine">
+                      <span className="reviewLabel">Backup</span>
+                      <span className="reviewValue">{selectedBackup}</span>
+                    </div>
+                    <div className="hint">Isso é uma cópia da coleção entries no momento do backup.</div>
+                  </div>
+
+                  <div className="nameRow" style={{ marginTop: 12 }}>
+                    <div className="modalLabel" style={{ marginBottom: 5 }}>Buscar por número ou nome</div>
+                    <input
+                      className="modalInput"
+                      value={backupEntrySearch}
+                      onChange={(e) => setBackupEntrySearch(e.target.value)}
+                      placeholder="Digite para filtrar"
+                      disabled={busy}
+                    />
+                  </div>
+
+                  <div className="listCard" style={{ marginTop: 12 }}>
+                    <div className="listTitle">
+                      <span>Itens</span>
+                      <span className="smallHint">Total: {filteredBackupEntries.length}</span>
+                    </div>
+
+                    <div className="listHead home">
+                      <div className="lh center">Número</div>
+                      <div className="lh">Nome</div>
+                      <div className="lh center">Reserva em</div>
+                      <div className="lh center">Pagamento</div>
+                    </div>
+
+                    <div className="listBody">
+                      {filteredBackupEntries.length ? (
+                        filteredBackupEntries.map(({ n, e }) => {
+                          const paid = !!e.paid
+                          return (
+                            <div key={n} className="listRow home">
+                              <div className="lc num center">{n}</div>
+                              <div className="lc nameCell" title={e.name}>
+                                {e.name}
+                              </div>
+                              <div className="lc whenCell center mono">{formatWhen(e.reservedAt)}</div>
+                              <div className="lc payCell center">
+                                <div className={'payPill ' + (paid ? 'pillPaid' : 'pillPending')}>
+                                  <TbBrandCashapp className={'cashIcon ' + (paid ? 'cashPaid' : 'cashPending')} />
+                                  <span className="payText">{paid ? 'Pago' : 'Não Pago'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <div className="empty">Nenhum item para mostrar</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="empty">Selecione um backup para visualizar</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="backRow">
+        <button className="btn" onClick={() => nav('/admin')}>
+          Voltar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/admin" element={<AdminPage />} />
+      <Route path="/admin/data" element={<DataAdminPage />} />
     </Routes>
   )
 }
