@@ -1253,10 +1253,14 @@ function AdminPage() {
         <div className="listTitle">
           <span>Reservas realizadas</span>
 
-          <button className="multiPayBtn" onClick={openMultiPay} title="Pagar múltiplos" aria-label="Pagar múltiplos">
-            <span>Ação Sobre Vários</span>
-            <BiSolidSelectMultiple color='green' />
-          </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="smallHint">Total: {filteredReservations.length}</span>
+          
+              <button className="multiPayBtn" onClick={openMultiPay} title="Pagar múltiplos" aria-label="Pagar múltiplos">
+                <span>Ação Sobre Vários</span>
+                <BiSolidSelectMultiple color="green" />
+              </button>
+            </div>
         </div>
 
         <div style={{ padding: 12 }}>
