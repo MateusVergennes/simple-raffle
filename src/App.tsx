@@ -589,6 +589,7 @@ function HomePage() {
       <div className="listCard">
         <div className="listTitle">
           <span>Reservas realizadas</span>
+          <span className="smallHint">Total: {filteredReservations.length}</span>
         </div>
 
         <div style={{ padding: 12 }}>
