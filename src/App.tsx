@@ -329,6 +329,8 @@ function HomePage() {
 
   const lastWinnerKeyRef = useRef('')
 
+  const LAST_NAME_KEY = 'rifa_last_name'
+
   useEffect(() => {
     if (cfgError) setError(cfgError)
   }, [cfgError, setError])
@@ -438,12 +440,32 @@ function HomePage() {
       .sort((a, b) => a - b)
   }, [selectedSet, total])
 
+  function readLastName() {
+    try {
+      return String(localStorage.getItem(LAST_NAME_KEY) || '').trim()
+    } catch {
+      return ''
+    }
+  }
+
+  function writeLastName(name: string) {
+    try {
+      const v = String(name || '').trim()
+      if (!v) {
+        localStorage.removeItem(LAST_NAME_KEY)
+        return
+      }
+      localStorage.setItem(LAST_NAME_KEY, v)
+    } catch {
+    }
+  }
+
   function openModal() {
     setError('')
     setBusy(false)
     setModalOpen(true)
     setModalStep('pick')
-    setModalName('')
+    setModalName(readLastName())
     setSelectedSet({})
   }
 
@@ -498,6 +520,8 @@ function HomePage() {
           tx.set(ref, { name, paid: false, reservedAt: serverTimestamp() })
         }
       })
+
+      writeLastName(name)
 
       const count = nums.length
       const amount = count * PRICE_PER_NUMBER
