@@ -1383,3 +1383,102 @@ body {
     color: #a6b7db;
     font-size: 12px;
 }
+
+/* Mapa de calor horizontal */
+.heatBarCard {
+    background: #121a27;
+    border: 1px solid #25324a;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+
+.heatBarHead {
+    padding: 12px;
+    background: #172236;
+    border-bottom: 1px solid #25324a;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.heatBarTitle {
+    font-weight: 900;
+}
+
+.heatBarHint {
+    font-size: 12px;
+    color: #a6b7db;
+    font-weight: 900;
+}
+
+.heatBarWrap {
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+    background: #0f1623;
+}
+
+.heatBar {
+    height: 18px;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid #2b3a57;
+    display: flex;
+    background: #0b1220;
+}
+
+.heatSeg {
+    height: 100%;
+    flex: 1 1 0;
+}
+
+.heatAxis {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.heatTick {
+    display: grid;
+    justify-items: center;
+    min-width: 0;
+    flex: 1 1 0;
+}
+
+.heatTickMark {
+    width: 1px;
+    height: 8px;
+    background: #25324a;
+}
+
+.heatTickLabel {
+    font-size: 12px;
+    color: #a6b7db;
+    font-weight: 900;
+    margin-top: 4px;
+}
+
+.heatLegendRow {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    margin-top: 2px;
+}
+
+.heatLegendLeft,
+.heatLegendRight {
+    font-size: 12px;
+    color: #a6b7db;
+    font-weight: 900;
+}
+
+.heatLegendBar {
+    height: 12px;
+    border-radius: 999px;
+    border: 1px solid #2b3a57;
+    background: linear-gradient(90deg, #22c55e, #fbbf24);
+}
