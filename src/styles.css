@@ -1455,12 +1455,18 @@ body {
 
 .heatTick:last-child {
     transform: translateX(-100%);
+    justify-items: end;
+    text-align: right;
 }
 
 .heatTickMark {
     width: 1px;
     height: 8px;
     background: #25324a;
+}
+
+.heatTick:last-child .heatTickMark {
+    justify-self: end;
 }
 
 .heatTickLabel {
