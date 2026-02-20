@@ -306,6 +306,103 @@ function PixPaymentCard(props: { title?: string }) {
   )
 }
 
+function HeatBarCard(props: { total: number; entries: Record<string, Entry | null>; reserved: number; available: number }) {
+  const { total, entries, reserved, available } = props
+
+  const heat = useMemo(() => {
+    const bins = Math.min(90, Math.max(40, Math.round(total / 3)))
+    const size = Math.ceil(total / bins)
+
+    const items: Array<{
+      i: number
+      start: number
+      end: number
+      count: number
+      ratio: number
+      color: string
+    }> = []
+
+    for (let i = 0; i < bins; i++) {
+      const start = i * size + 1
+      const end = Math.min(total, (i + 1) * size)
+      if (start > end) break
+
+      let count = 0
+      for (let n = start; n <= end; n++) {
+        if (entries[String(n)]) count++
+      }
+
+      const span = end - start + 1
+      const ratio = span ? count / span : 0
+
+      const g = { r: 34, g: 197, b: 94 }
+      const y = { r: 251, g: 191, b: 36 }
+
+      const rr = Math.round(g.r + (y.r - g.r) * ratio)
+      const gg = Math.round(g.g + (y.g - g.g) * ratio)
+      const bb = Math.round(g.b + (y.b - g.b) * ratio)
+
+      items.push({
+        i,
+        start,
+        end,
+        count,
+        ratio,
+        color: `rgb(${rr}, ${gg}, ${bb})`
+      })
+    }
+
+    return { bins: items, size }
+  }, [entries, total])
+
+  if (!total) return null
+  if (available <= 0) return null
+  if (reserved <= 0) return null
+
+  const ticks = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+
+  return (
+    <div className="heatBarCard">
+      <div className="heatBarHead">
+        <div className="heatBarTitle">Mapa de calor por faixa</div>
+        <div className="heatBarHint">Verde mais livre, amarelo mais reservado</div>
+      </div>
+
+      <div className="heatBarWrap">
+        <div className="heatBar">
+          {heat.bins.map((b) => (
+            <div
+              key={b.i}
+              className="heatSeg"
+              style={{ backgroundColor: b.color }}
+              title={`${b.start} a ${b.end}: ${b.count} reservado(s)`}
+              aria-label={`${b.start} a ${b.end}: ${b.count} reservados`}
+            />
+          ))}
+        </div>
+
+        <div className="heatAxis">
+          {ticks.map((t) => {
+            const v = Math.round(total * t)
+            return (
+              <div key={String(t)} className="heatTick">
+                <div className="heatTickMark" />
+                <div className="heatTickLabel">{v}</div>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="heatLegendRow">
+          <div className="heatLegendLeft">Menos reservado</div>
+          <div className="heatLegendBar" aria-hidden="true" />
+          <div className="heatLegendRight">Mais reservado</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function HomePage() {
   const { cfg, cfgError } = useConfig()
   const total = clampTotal(cfg.totalNumbers ?? 200)
@@ -585,6 +682,8 @@ function HomePage() {
       <PixPaymentCard title="Pagamento" />
 
       <SummaryCard cfg={cfg} stats={stats} chart={chart} onOpenImage={() => setImageOpen(true)} />
+
+      <HeatBarCard total={total} entries={entries} reserved={stats.reserved} available={stats.available} />
 
       <div className="listCard">
         <div className="listTitle">
@@ -1253,14 +1352,14 @@ function AdminPage() {
         <div className="listTitle">
           <span>Reservas realizadas</span>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className="smallHint">Total: {filteredReservations.length}</span>
-          
-              <button className="multiPayBtn" onClick={openMultiPay} title="Pagar múltiplos" aria-label="Pagar múltiplos">
-                <span>Ação Sobre Vários</span>
-                <BiSolidSelectMultiple color="green" />
-              </button>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="smallHint">Total: {filteredReservations.length}</span>
+
+            <button className="multiPayBtn" onClick={openMultiPay} title="Pagar múltiplos" aria-label="Pagar múltiplos">
+              <span>Ação Sobre Vários</span>
+              <BiSolidSelectMultiple color="green" />
+            </button>
+          </div>
         </div>
 
         <div style={{ padding: 12 }}>
