@@ -693,7 +693,7 @@ function HomePage() {
 
       <SummaryCard cfg={cfg} stats={stats} chart={chart} onOpenImage={() => setImageOpen(true)} />
 
-      <HeatmapCard total={total} entries={entries} />
+      {/* <HeatmapCard total={total} entries={entries} /> */}
 
       <div className="listCard">
         <div className="listTitle">
