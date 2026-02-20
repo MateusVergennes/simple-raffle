@@ -384,7 +384,7 @@ function HeatBarCard(props: { total: number; entries: Record<string, Entry | nul
           {ticks.map((t) => {
             const v = Math.round(total * t)
             return (
-              <div key={String(t)} className="heatTick">
+              <div key={String(t)} className="heatTick" style={{ left: `${t * 100}%` }}>
                 <div className="heatTickMark" />
                 <div className="heatTickLabel">{v}</div>
               </div>
