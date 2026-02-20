@@ -365,10 +365,6 @@ function HeatBarCard(props: { total: number; entries: Record<string, Entry | nul
     <div className="heatBarCard">
       <div className="heatBarHead">
         <div className="heatBarTitle">Regiões Com Mais Reservas</div>
-        <div className="heatBarHint">
-          <span className="heatWordGreen">Verde</span> mais <span className="heatWordGreen">Livre</span>,{' '}
-          <span className="heatWordYellow">Amarelo</span> mais <span className="heatWordYellow">Reservado</span>
-        </div>
       </div>
 
       <div className="heatBarWrap">
@@ -397,9 +393,13 @@ function HeatBarCard(props: { total: number; entries: Record<string, Entry | nul
         </div>
 
         <div className="heatLegendRow">
-          <div className="heatLegendLeft">Menos reservado</div>
+          <div className="heatLegendLeft">
+            <span className="heatWordGreen">Menos reservado</span>
+          </div>
           <div className="heatLegendBar" aria-hidden="true" />
-          <div className="heatLegendRight">Mais reservado</div>
+          <div className="heatLegendRight">
+            <span className="heatWordYellow">Mais reservado</span>
+          </div>
         </div>
       </div>
     </div>
