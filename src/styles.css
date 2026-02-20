@@ -1482,3 +1482,10 @@ body {
     border: 1px solid #2b3a57;
     background: linear-gradient(90deg, #22c55e, #fbbf24);
 }
+.heatWordGreen {
+    color: #22c55e;
+}
+
+.heatWordYellow {
+    color: #fbbf24;
+}
