@@ -370,113 +370,6 @@ function HomePage() {
     }
   }, [modalOpen, imageOpen, payOpen])
 
-  function HeatmapCard(props: { total: number; entries: Record<string, Entry | null> }) {
-    const { total, entries } = props
-  
-    const heat = useMemo(() => {
-      const bins = Math.min(24, Math.max(10, Math.round(Math.sqrt(total) * 1.4)))
-      const size = Math.ceil(total / bins)
-  
-      const items: Array<{
-        i: number
-        start: number
-        end: number
-        count: number
-        density: number
-      }> = []
-  
-      for (let i = 0; i < bins; i++) {
-        const start = i * size + 1
-        const end = Math.min(total, (i + 1) * size)
-        if (start > end) break
-  
-        let count = 0
-        for (let n = start; n <= end; n++) {
-          if (entries[String(n)]) count++
-        }
-  
-        const rangeSize = end - start + 1
-        const density = rangeSize ? count / rangeSize : 0
-  
-        items.push({ i, start, end, count, density })
-      }
-  
-      const maxDensity = items.reduce((m, x) => (x.density > m ? x.density : m), 0)
-  
-      const withLevel = items.map((x) => {
-        const ratio = maxDensity ? x.density / maxDensity : 0
-        const level = Math.max(0, Math.min(4, Math.round(ratio * 4)))
-        return { ...x, level }
-      })
-  
-      let most = withLevel[0] || null
-      let least = withLevel[0] || null
-  
-      for (const x of withLevel) {
-        if (!most || x.density > most.density) most = x
-        if (!least || x.density < least.density) least = x
-      }
-  
-      return { bins: withLevel, most, least }
-    }, [entries, total])
-  
-    if (!heat.bins.length) return null
-  
-    return (
-      <div className="heatCard">
-        <div className="heatHead">
-          <div className="heatTitle">Mapa de preferência</div>
-          <div className="heatHint">
-            Mais escuro = mais escolhido
-          </div>
-        </div>
-  
-        <div className="heatGrid">
-          {heat.bins.map((b) => (
-            <div
-              key={b.i}
-              className={'heatCell heat' + b.level}
-              title={`${b.start} a ${b.end}: ${b.count} reserva(s)`}
-              aria-label={`${b.start} a ${b.end}: ${b.count} reservas`}
-            >
-              <div className="heatRange">
-                {b.start}-{b.end}
-              </div>
-            </div>
-          ))}
-        </div>
-  
-        <div className="heatFooter">
-          <div className="heatLegend">
-            <span className="heatChip heat0" /> menos
-            <span className="heatChip heat2" />
-            <span className="heatChip heat4" /> mais
-          </div>
-  
-          <div className="heatExtremes">
-            {heat.most ? (
-              <div className="heatExtreme">
-                <span className="heatExtremeLabel">Mais escolhida</span>
-                <span className="heatExtremeValue">
-                  {heat.most.start}-{heat.most.end} ({heat.most.count})
-                </span>
-              </div>
-            ) : null}
-  
-            {heat.least ? (
-              <div className="heatExtreme">
-                <span className="heatExtremeLabel">Menos escolhida</span>
-                <span className="heatExtremeValue">
-                  {heat.least.start}-{heat.least.end} ({heat.least.count})
-                </span>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const stats = useMemo(() => {
     const totalN = total
     let reserved = 0
@@ -692,8 +585,6 @@ function HomePage() {
       <PixPaymentCard title="Pagamento" />
 
       <SummaryCard cfg={cfg} stats={stats} chart={chart} onOpenImage={() => setImageOpen(true)} />
-
-      {/* <HeatmapCard total={total} entries={entries} /> */}
 
       <div className="listCard">
         <div className="listTitle">
