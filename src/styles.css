@@ -1436,16 +1436,25 @@ body {
 }
 
 .heatAxis {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
+    position: relative;
+    height: 22px;
 }
 
 .heatTick {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
     display: grid;
     justify-items: center;
     min-width: 0;
-    flex: 1 1 0;
+}
+
+.heatTick:first-child {
+    transform: translateX(0);
+}
+
+.heatTick:last-child {
+    transform: translateX(-100%);
 }
 
 .heatTickMark {
